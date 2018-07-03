@@ -90,6 +90,8 @@ class BaseAPI(object):
                       badge=None,
                       color=None,
                       tag=None,
+                      target_url=None,
+                      image_url=None,
                       body_loc_key=None,
                       body_loc_args=None,
                       title_loc_key=None,
@@ -140,11 +142,13 @@ class BaseAPI(object):
         if dry_run:
             fcm_payload['dry_run'] = dry_run
 
-        if data_message:
-            if isinstance(data_message, dict):
-                fcm_payload['data'] = data_message
-            else:
-                raise InvalidDataError("Provided data_message is in the wrong format")
+        # if data_message:
+        if isinstance(data_message, dict):
+            fcm_payload['data'] = data_message
+        elif data_message is None:
+            fcm_payload['data'] = {}
+        else:
+            raise InvalidDataError("Provided data_message is in the wrong format")
 
         fcm_payload['notification'] = {}
         if message_icon:
@@ -152,6 +156,7 @@ class BaseAPI(object):
         # If body is present, use it
         if message_body:
             fcm_payload['notification']['body'] = message_body
+            # fcm_payload['data']['msg'] = message_body
         # Else use body_loc_key and body_loc_args for body
         else:
             if body_loc_key:
@@ -164,6 +169,21 @@ class BaseAPI(object):
         # If title is present, use it
         if message_title:
             fcm_payload['notification']['title'] = message_title
+            # fcm_payload['data']['title'] = message_title
+
+        if target_url:
+            fcm_payload['notification']['path'] = target_url
+            fcm_payload['notification']['target_url'] = target_url
+            fcm_payload['data']['path'] = target_url
+            # fcm_payload['data']['target_url'] = target_url
+
+        if image_url:
+            fcm_payload['notification']['images'] = image_url
+            fcm_payload['notification']['image_url'] = image_url
+            # fcm_payload['data']['images'] = image_url
+            # fcm_payload['data']['image_url'] = image_url
+
+
         # Else use title_loc_key and title_loc_args for title
         else:
             if title_loc_key:
@@ -187,6 +207,8 @@ class BaseAPI(object):
             fcm_payload['notification']['click_action'] = click_action
         if isinstance(badge, int) and badge >= 0:
             fcm_payload['notification']['badge'] = badge
+            fcm_payload['notification']['count'] = badge
+            fcm_payload['data']['count'] = badge
         if color:
             fcm_payload['notification']['color'] = color
         if tag:
@@ -280,22 +302,22 @@ class BaseAPI(object):
         """
         url = '''https://iid.googleapis.com/iid/v1:batchRemove'''
         payload = json.dumps({
-            'to': '/topics/'+topic_name,
+            'to': '/topics/' + topic_name,
             'registration_tokens': registration_ids,
         })
         response = requests.post(
-           url, 
-           headers=self.request_headers(),
-           data=payload,
+            url,
+            headers=self.request_headers(),
+            data=payload,
         )
         if response.status_code == 200:
             return True
         elif response.status_code == 400:
-            error = json.loads( response.content )
+            error = json.loads(response.content)
             raise InvalidDataError(error['error'])
         else:
             raise FCMError()
-        
+
     def parse_responses(self):
         """
         Returns a python dict of multicast_ids(list), success(int), failure(int), canonical_ids(int), results(list) and optional topic_message_id(str but None by default)
